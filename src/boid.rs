@@ -10,8 +10,8 @@ use crate::Obstacle;
 /// boid struct is a point with a velocity
 #[derive(Clone)]
 pub struct Boid {
-    pos: Point3<f64>,
-    vel: Vector3<f64>,
+    pub pos: Point3<f64>,
+    pub vel: Vector3<f64>,
 }
 
 impl Boid {

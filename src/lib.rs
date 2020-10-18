@@ -48,6 +48,7 @@ impl ObstacleData {
 pub struct BoidData {
     pos: [f64; 3],
     vel: [f64; 3],
+    rot: [f64; 4],
 }
 
 impl From<Boid> for BoidData {
@@ -55,14 +56,15 @@ impl From<Boid> for BoidData {
         Self {
             pos: boid.pos_array(),
             vel: boid.vel_array(),
+            rot: boid.rot_array(),
         }
     }
 }
 
 #[wasm_bindgen]
 impl BoidData {
-    fn new(pos: [f64; 3], vel: [f64; 3]) -> Self {
-        BoidData { pos, vel }
+    fn new(pos: [f64; 3], vel: [f64; 3], rot: [f64; 4]) -> Self {
+        BoidData { pos, vel, rot }
     }
 }
 
@@ -147,6 +149,11 @@ impl Boids {
     }
 
     pub fn boids_iteration(&mut self, delta_time: f64) -> JsValue {
+        let delta_time = match delta_time.is_nan() {
+            true => 0.0,
+            false => delta_time,
+        };
+
         set_panic_hook();
 
         let Self {
