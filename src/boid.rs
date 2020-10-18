@@ -165,7 +165,7 @@ impl Boid {
         }
 
         if neighbours != 0 {
-            alignment = alignment / neighbours as f64;
+            alignment /= neighbours as f64;
             cohesion = (cohesion / neighbours as f64) - self.pos.coords;
 
             acc += self.calc_acc(&alignment, config) * align_w;
@@ -202,7 +202,7 @@ lazy_static! {
         let angle_increment = std::f64::consts::PI * 2.0 * golden_ratio;
 
         for (i, dir) in ray_dirs.iter_mut().enumerate() {
-            let t: f64 = i as f64 / 100 as f64;
+            let t: f64 = i as f64 / 100.0;
             let inclination: f64 = (1.0 - 2.0 * t).acos();
             let azimuth: f64 = angle_increment * i as f64;
 

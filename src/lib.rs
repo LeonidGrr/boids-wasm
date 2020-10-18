@@ -4,7 +4,6 @@ use ncollide3d::math::Isometry;
 use ncollide3d::nalgebra::{Point2, Point3};
 use ncollide3d::query::RayCast;
 use ncollide3d::shape::TriMesh;
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -67,6 +66,7 @@ impl BoidData {
     }
 }
 
+#[wasm_bindgen]
 #[derive(Serialize, Deserialize)]
 pub struct BoidsConfig {
     // scaling factors
@@ -118,20 +118,6 @@ pub struct Boids {
 
 #[wasm_bindgen]
 impl Boids {
-    pub fn setup(obstacle_data: JsValue, boids_data: JsValue) -> Boids {
-        set_panic_hook();
-        let obstacle_data = obstacle_data.into_serde().unwrap();
-        let boids_data = boids_data.into_serde().unwrap();
-        let obstacles = Self::create_obstacles(obstacle_data);
-        let boids = Self::create_boids(boids_data);
-
-        Boids {
-            obstacles,
-            boids,
-            config: BoidsConfig::default(),
-        }
-    }
-
     fn create_boids(boids_data: Vec<BoidData>) -> Vec<Boid> {
         set_panic_hook();
 
@@ -173,7 +159,7 @@ impl Boids {
 
         // compute new boxy velocity and set it
         boids
-            .par_iter_mut() // from iter_mut
+            .iter_mut() // from iter_mut
             .enumerate()
             .for_each(|(i, b): (usize, &mut Boid)| {
                 b.frame_update(i, &copy, &obstacles, delta_time, &config)
@@ -184,6 +170,27 @@ impl Boids {
             .map(|b| BoidData::from(b.clone()))
             .collect::<Vec<BoidData>>();
         JsValue::from_serde(&boids_data).unwrap()
+    }
+}
+
+#[wasm_bindgen]
+pub fn config() -> JsValue {
+    JsValue::from_serde(&BoidsConfig::default()).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn init(obstacle_data: JsValue, boids_data: JsValue, config: JsValue) -> Boids {
+    set_panic_hook();
+    let obstacle_data = obstacle_data.into_serde().unwrap();
+    let boids_data = boids_data.into_serde().unwrap();
+    let config = config.into_serde().unwrap();
+    let obstacles = Boids::create_obstacles(obstacle_data);
+    let boids = Boids::create_boids(boids_data);
+
+    Boids {
+        obstacles,
+        boids,
+        config,
     }
 }
 
