@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use ncollide3d::math::Isometry;
 use ncollide3d::nalgebra::{Point2, Point3};
 use ncollide3d::query::RayCast;
@@ -14,8 +16,10 @@ pub fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
+pub type Obstacle = (Box<dyn RayCast<f64> + Sync>, Isometry<f64>);
+
 #[wasm_bindgen]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ObstacleData {
     points: Vec<[f64; 3]>,
     indices: Vec<[usize; 3]>,
@@ -24,7 +28,24 @@ pub struct ObstacleData {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Serialize, Deserialize)]
+impl ObstacleData {
+    fn new(
+        points: Vec<[f64; 3]>,
+        indices: Vec<[usize; 3]>,
+        uvs: Vec<[f64; 2]>,
+        position: [f64; 3],
+    ) -> Self {
+        ObstacleData {
+            points,
+            indices,
+            uvs,
+            position,
+        }
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Serialize, Deserialize)]
 pub struct BoidData {
     pos: [f64; 3],
     vel: [f64; 3],
@@ -40,7 +61,13 @@ impl From<Boid> for BoidData {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Serialize, Deserialize)]
+impl BoidData {
+    fn new(pos: [f64; 3], vel: [f64; 3]) -> Self {
+        BoidData { pos, vel }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct BoidsConfig {
     // scaling factors
     time_scale: f64,
@@ -62,34 +89,46 @@ pub struct BoidsConfig {
     collision_r: f64,
 }
 
+impl Default for BoidsConfig {
+    fn default() -> Self {
+        BoidsConfig {
+            time_scale: 1.0,
+            max_vel: 14.0,
+            min_vel: 7.0,
+            max_acc: 2.0,
+            min_acc: 0.0,
+            obstacle_w: 6.0,
+            align_w: 0.2,
+            collision_w: 1.0,
+            cohesion_w: 0.1,
+            obstacle_dist: 5.0,
+            view_ang: 2.0 * std::f64::consts::PI,
+            view_r: 3.0,
+            collision_r: 1.3,
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub struct Boids {
-    obstacles: Vec<(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)>,
+    obstacles: Vec<Obstacle>,
     boids: Vec<Boid>,
     config: BoidsConfig,
 }
 
 #[wasm_bindgen]
 impl Boids {
-    pub fn new(
-        // obstacle_data: Vec<ObstacleData>,
-        // boids_data: Vec<BoidData>,
-        // config: BoidsConfig,
-        obstacle_data: JsValue,
-        boids_data: JsValue,
-        config: JsValue,
-    ) -> Boids {
+    pub fn setup(obstacle_data: JsValue, boids_data: JsValue) -> Boids {
         set_panic_hook();
         let obstacle_data = obstacle_data.into_serde().unwrap();
         let boids_data = boids_data.into_serde().unwrap();
-        let config = config.into_serde().unwrap();
         let obstacles = Self::create_obstacles(obstacle_data);
         let boids = Self::create_boids(boids_data);
 
         Boids {
             obstacles,
             boids,
-            config,
+            config: BoidsConfig::default(),
         }
     }
 
@@ -105,9 +144,7 @@ impl Boids {
         boids
     }
 
-    fn create_obstacles(
-        obstacle_data: Vec<ObstacleData>,
-    ) -> Vec<(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)> {
+    fn create_obstacles(obstacle_data: Vec<ObstacleData>) -> Vec<Obstacle> {
         set_panic_hook();
 
         let mut obstacles: Vec<(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)> = Vec::new();

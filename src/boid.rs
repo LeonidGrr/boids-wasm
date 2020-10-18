@@ -1,15 +1,13 @@
 use lazy_static::lazy_static;
-use ncollide3d::math::Isometry;
 use ncollide3d::nalgebra::clamp;
 use ncollide3d::nalgebra::geometry::UnitQuaternion;
 use ncollide3d::nalgebra::{Point3, Vector3, Vector4};
-use ncollide3d::query::{Ray, RayCast};
-use wasm_bindgen::prelude::*;
+use ncollide3d::query::Ray;
 
 use crate::BoidsConfig;
+use crate::Obstacle;
 
 /// boid struct is a point with a velocity
-#[wasm_bindgen]
 #[derive(Clone)]
 pub struct Boid {
     pos: Point3<f64>,
@@ -40,7 +38,7 @@ impl Boid {
         &mut self,
         i: usize,
         copy: &[Boid],
-        obs: &[(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)],
+        obs: &[Obstacle],
         delta_time: f64,
         config: &BoidsConfig,
     ) {
@@ -72,11 +70,7 @@ impl Boid {
     }
 
     /// return unobstructed direction closest to current velocity
-    fn unobstructed_dir(
-        &self,
-        obs: &[(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)],
-        config: &BoidsConfig,
-    ) -> Option<Vector3<f64>> {
+    fn unobstructed_dir(&self, obs: &[Obstacle], config: &BoidsConfig) -> Option<Vector3<f64>> {
         // create a rotation to orient ray directions along velocity
         let ray_axis: Vector3<f64> = Vector3::new(0.0, 0.0, 1.0);
         let rot = UnitQuaternion::rotation_between(&ray_axis, &self.vel).unwrap_or(
@@ -120,7 +114,7 @@ impl Boid {
         &self,
         i: usize,
         copy: &[Boid],
-        obs: &[(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)],
+        obs: &[Obstacle],
         config: &BoidsConfig,
     ) -> Vector3<f64> {
         let BoidsConfig {
@@ -207,7 +201,7 @@ lazy_static! {
         let golden_ratio: f64 = 1.618;
         let angle_increment = std::f64::consts::PI * 2.0 * golden_ratio;
 
-        for i in 0..100 {
+        for (i, dir) in ray_dirs.iter_mut().enumerate() {
             let t: f64 = i as f64 / 100 as f64;
             let inclination: f64 = (1.0 - 2.0 * t).acos();
             let azimuth: f64 = angle_increment * i as f64;
@@ -215,7 +209,7 @@ lazy_static! {
             let x = inclination.sin() * azimuth.cos();
             let y = inclination.sin() * azimuth.sin();
             let z = inclination.cos();
-            ray_dirs[i] = Vector3::new(x, y, z);
+            *dir = Vector3::new(x, y, z);
         }
 
         ray_dirs
@@ -223,11 +217,7 @@ lazy_static! {
 }
 
 /// check if a ray collides with the given obstacles
-fn collided(
-    obs: &[(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)],
-    ray: Ray<f64>,
-    config: &BoidsConfig,
-) -> bool {
+fn collided(obs: &[Obstacle], ray: Ray<f64>, config: &BoidsConfig) -> bool {
     obs.iter()
         .any(|(shape, iso)| shape.intersects_ray(iso, &ray, config.obstacle_dist))
 }
