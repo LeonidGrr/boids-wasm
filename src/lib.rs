@@ -17,33 +17,14 @@ pub fn set_panic_hook() {
 
 pub type Obstacle = (Box<dyn RayCast<f64> + Sync>, Isometry<f64>);
 
-#[wasm_bindgen]
 #[derive(Serialize, Deserialize)]
 pub struct ObstacleData {
-    points: Vec<[f64; 3]>,
-    indices: Vec<[usize; 3]>,
-    uvs: Vec<[f64; 2]>,
+    points: Vec<f64>,
+    indices: Vec<usize>,
+    uvs: Vec<f64>,
     position: [f64; 3],
 }
 
-#[wasm_bindgen]
-impl ObstacleData {
-    fn new(
-        points: Vec<[f64; 3]>,
-        indices: Vec<[usize; 3]>,
-        uvs: Vec<[f64; 2]>,
-        position: [f64; 3],
-    ) -> Self {
-        ObstacleData {
-            points,
-            indices,
-            uvs,
-            position,
-        }
-    }
-}
-
-#[wasm_bindgen]
 #[derive(Serialize, Deserialize)]
 pub struct BoidData {
     pos: [f64; 3],
@@ -58,13 +39,6 @@ impl From<Boid> for BoidData {
             vel: boid.vel_array(),
             rot: boid.rot_array(),
         }
-    }
-}
-
-#[wasm_bindgen]
-impl BoidData {
-    fn new(pos: [f64; 3], vel: [f64; 3], rot: [f64; 4]) -> Self {
-        BoidData { pos, vel, rot }
     }
 }
 
@@ -121,40 +95,44 @@ pub struct Boids {
 #[wasm_bindgen]
 impl Boids {
     fn create_boids(boids_data: Vec<BoidData>) -> Vec<Boid> {
-        set_panic_hook();
-
-        let mut boids = Vec::new();
-
-        for d in boids_data {
-            boids.push(Boid::new(d.pos, d.vel))
-        }
-
-        boids
+        boids_data.iter().fold(Vec::new(), |mut acc, d| {
+            acc.push(Boid::new(d.pos, d.vel));
+            acc
+        })
     }
 
     fn create_obstacles(obstacle_data: Vec<ObstacleData>) -> Vec<Obstacle> {
-        set_panic_hook();
-
-        let mut obstacles: Vec<(Box<dyn RayCast<f64> + Sync>, Isometry<f64>)> = Vec::new();
-
-        for d in obstacle_data.iter() {
-            let points = d.points.iter().map(|x| Point3::from_slice(x)).collect();
-            let indices = d.indices.iter().map(|x| Point3::from_slice(x)).collect();
-            let uvs = Some(d.uvs.iter().map(|x| Point2::from_slice(x)).collect());
-            let position = Isometry::translation(d.position[0], d.position[1], d.position[2]);
-            obstacles.push((Box::new(TriMesh::new(points, indices, uvs)), position))
-        }
-
-        obstacles
+        obstacle_data.iter().fold(Vec::new(), |mut res, d| {
+            let ObstacleData {
+                points,
+                indices,
+                uvs,
+                position,
+            } = d;
+            let points = points.chunks(3).fold(Vec::new(), |mut acc, x| {
+                acc.push(Point3::from_slice(x));
+                acc
+            });
+            let indices = indices.chunks(3).fold(Vec::new(), |mut acc, x| {
+                acc.push(Point3::from_slice(x));
+                acc
+            });
+            let uvs = Some(uvs.chunks(2).fold(Vec::new(), |mut acc, x| {
+                acc.push(Point2::from_slice(x));
+                acc
+            }));
+            let position = Isometry::translation(position[0], position[1], position[2]);
+            res.push((Box::new(TriMesh::new(points, indices, uvs)), position));
+            res
+        })
     }
 
     pub fn boids_iteration(&mut self, delta_time: f64) -> JsValue {
+        set_panic_hook();
         let delta_time = match delta_time.is_nan() {
             true => 0.0,
             false => delta_time,
         };
-
-        set_panic_hook();
 
         let Self {
             boids,
@@ -163,30 +141,26 @@ impl Boids {
         } = self;
 
         let copy: Vec<Boid> = boids.clone();
-
-        // compute new boxy velocity and set it
+        let mut output = Vec::new();
         boids
-            .iter_mut() // from iter_mut
+            .iter_mut()
             .enumerate()
             .for_each(|(i, b): (usize, &mut Boid)| {
-                b.frame_update(i, &copy, &obstacles, delta_time, &config)
+                b.frame_update(i, &copy, &obstacles, delta_time, &config);
+                output.push(BoidData::from(b.clone()))
             });
 
-        let boids_data = boids
-            .iter()
-            .map(|b| BoidData::from(b.clone()))
-            .collect::<Vec<BoidData>>();
-        JsValue::from_serde(&boids_data).unwrap()
+        JsValue::from_serde(&output).unwrap()
     }
 }
 
 #[wasm_bindgen]
-pub fn config() -> JsValue {
+pub fn boids_config() -> JsValue {
     JsValue::from_serde(&BoidsConfig::default()).unwrap()
 }
 
 #[wasm_bindgen]
-pub fn init(obstacle_data: JsValue, boids_data: JsValue, config: JsValue) -> Boids {
+pub fn boids_initialize(obstacle_data: JsValue, boids_data: JsValue, config: JsValue) -> Boids {
     set_panic_hook();
     let obstacle_data = obstacle_data.into_serde().unwrap();
     let boids_data = boids_data.into_serde().unwrap();
@@ -198,13 +172,5 @@ pub fn init(obstacle_data: JsValue, boids_data: JsValue, config: JsValue) -> Boi
         obstacles,
         boids,
         config,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
     }
 }

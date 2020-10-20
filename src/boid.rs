@@ -7,7 +7,7 @@ use ncollide3d::query::Ray;
 use crate::BoidsConfig;
 use crate::Obstacle;
 
-/// boid struct is a point with a velocity
+/// Boid struct is a point with a velocity
 #[derive(Clone)]
 pub struct Boid {
     pub pos: Point3<f64>,
@@ -15,7 +15,7 @@ pub struct Boid {
 }
 
 impl Boid {
-    /// create new boid
+    /// Create new boid
     pub fn new(pos: [f64; 3], vel: [f64; 3]) -> Self {
         Boid {
             pos: Point3::from(Vector3::from(pos)),
@@ -23,17 +23,17 @@ impl Boid {
         }
     }
 
-    /// return position as array
+    /// Return position as array
     pub fn pos_array(&self) -> [f64; 3] {
         self.pos.coords.into()
     }
 
-    /// return velocity as array
+    /// Return velocity as array
     pub fn vel_array(&self) -> [f64; 3] {
         self.vel.into()
     }
 
-    /// update boid for each frame
+    /// Update boid for each frame
     pub fn frame_update(
         &mut self,
         i: usize,
@@ -58,7 +58,7 @@ impl Boid {
         self.vel = new_vel;
     }
 
-    /// return rotation from y-axis towards velocity
+    /// return Rotation from y-axis towards velocity
     pub fn rot_array(&self) -> [f64; 4] {
         let rot: Vector4<f64> = *UnitQuaternion::rotation_between(&Vector3::y_axis(), &self.vel)
             .unwrap_or(UnitQuaternion::from_axis_angle(
@@ -69,7 +69,7 @@ impl Boid {
         rot.into()
     }
 
-    /// return unobstructed direction closest to current velocity
+    /// Return unobstructed direction closest to current velocity
     fn unobstructed_dir(&self, obs: &[Obstacle], config: &BoidsConfig) -> Option<Vector3<f64>> {
         // create a rotation to orient ray directions along velocity
         let ray_axis: Vector3<f64> = Vector3::new(0.0, 0.0, 1.0);
@@ -95,7 +95,7 @@ impl Boid {
         best_dir
     }
 
-    /// calculate clamped acceleration
+    /// Calculate clamped acceleration
     fn calc_acc(&self, vel: &Vector3<f64>, config: &BoidsConfig) -> Vector3<f64> {
         let BoidsConfig {
             max_acc,
@@ -109,7 +109,7 @@ impl Boid {
         acc
     }
 
-    /// apply rules to calculate acceleration
+    /// Apply rules to calculate acceleration
     fn apply_rules(
         &self,
         i: usize,
@@ -181,6 +181,7 @@ impl Boid {
             origin: self.pos,
             dir: self.vel.normalize(),
         };
+
         if collided(obs, cur_ray, config) {
             // try to find an unobstructed direction
             // only affect acceleration if unobstructed direction exists
@@ -216,7 +217,7 @@ lazy_static! {
     };
 }
 
-/// check if a ray collides with the given obstacles
+/// Check if a ray collides with the given obstacles
 fn collided(obs: &[Obstacle], ray: Ray<f64>, config: &BoidsConfig) -> bool {
     obs.iter()
         .any(|(shape, iso)| shape.intersects_ray(iso, &ray, config.obstacle_dist))
