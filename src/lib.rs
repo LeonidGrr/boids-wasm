@@ -152,6 +152,10 @@ impl Boids {
 
         JsValue::from_serde(&output).unwrap()
     }
+
+    pub fn update_config(&mut self, config: JsValue) {
+        self.config = config.into_serde().unwrap();
+    }
 }
 
 #[wasm_bindgen]
