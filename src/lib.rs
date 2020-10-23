@@ -63,6 +63,10 @@ pub struct BoidsConfig {
     view_ang: f64,
     view_r: f64,
     collision_r: f64,
+
+    // target
+    target_w: f64,
+    target_pos: [f64; 3],
 }
 
 impl Default for BoidsConfig {
@@ -81,6 +85,8 @@ impl Default for BoidsConfig {
             view_ang: 2.0 * std::f64::consts::PI,
             view_r: 3.0,
             collision_r: 1.3,
+            target_w: 0.0,
+            target_pos: [0.0, 0.0, 0.0],
         }
     }
 }
@@ -154,7 +160,20 @@ impl Boids {
     }
 
     pub fn update_config(&mut self, config: JsValue) {
+        set_panic_hook();
         self.config = config.into_serde().unwrap();
+    }
+
+    pub fn update_obstacles(&mut self, obstacle_data: JsValue) {
+        set_panic_hook();
+        let obstacle_data = obstacle_data.into_serde().unwrap();
+        self.obstacles = Self::create_obstacles(obstacle_data);
+    }
+
+    pub fn update_boids(&mut self, boids_data: JsValue) {
+        set_panic_hook();
+        let boids_data = boids_data.into_serde().unwrap();
+        self.boids = Boids::create_boids(boids_data);
     }
 }
 

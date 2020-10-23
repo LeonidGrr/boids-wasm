@@ -61,10 +61,9 @@ impl Boid {
     /// return Rotation from y-axis towards velocity
     pub fn rot_array(&self) -> [f64; 4] {
         let rot: Vector4<f64> = *UnitQuaternion::rotation_between(&Vector3::y_axis(), &self.vel)
-            .unwrap_or(UnitQuaternion::from_axis_angle(
-                &Vector3::x_axis(),
-                std::f64::consts::PI,
-            ))
+            .unwrap_or_else(|| {
+                UnitQuaternion::from_axis_angle(&Vector3::x_axis(), std::f64::consts::PI)
+            })
             .as_vector();
         rot.into()
     }
@@ -73,9 +72,9 @@ impl Boid {
     fn unobstructed_dir(&self, obs: &[Obstacle], config: &BoidsConfig) -> Option<Vector3<f64>> {
         // create a rotation to orient ray directions along velocity
         let ray_axis: Vector3<f64> = Vector3::new(0.0, 0.0, 1.0);
-        let rot = UnitQuaternion::rotation_between(&ray_axis, &self.vel).unwrap_or(
-            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), std::f64::consts::PI),
-        );
+        let rot = UnitQuaternion::rotation_between(&ray_axis, &self.vel).unwrap_or_else(|| {
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), std::f64::consts::PI)
+        });
 
         let mut best_dir: Option<Vector3<f64>> = None;
         for dir in RAY_DIRS.iter() {
@@ -125,6 +124,8 @@ impl Boid {
             cohesion_w,
             obstacle_w,
             align_w,
+            target_pos,
+            target_w,
             ..
         } = *config;
         let mut acc: Vector3<f64> = Vector3::new(0.0, 0.0, 0.0);
@@ -135,6 +136,11 @@ impl Boid {
         let mut alignment: Vector3<f64> = Vector3::new(0.0, 0.0, 0.0);
         let mut cohesion: Vector3<f64> = Vector3::new(0.0, 0.0, 0.0);
         let mut collision: Vector3<f64> = Vector3::new(0.0, 0.0, 0.0);
+
+        // adjust acc towards target
+        let target_pos = Point3::from(Vector3::from(target_pos));
+        let target_dir = target_pos.coords - self.pos.coords;
+        acc += self.calc_acc(&target_dir, config) * target_w;
 
         // aggregate neighbour information
         for (index, b) in copy.iter().enumerate() {
@@ -167,7 +173,6 @@ impl Boid {
         if neighbours != 0 {
             alignment /= neighbours as f64;
             cohesion = (cohesion / neighbours as f64) - self.pos.coords;
-
             acc += self.calc_acc(&alignment, config) * align_w;
             acc += self.calc_acc(&cohesion, config) * cohesion_w;
         }
