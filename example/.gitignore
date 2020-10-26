@@ -1,0 +1,10 @@
+/.idea
+/.vscode
+
+# dependencies
+/node_modules
+
+# production
+/build
+/dist
+/doc
